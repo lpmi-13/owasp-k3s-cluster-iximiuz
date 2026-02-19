@@ -1,0 +1,160 @@
+kind: playground
+name: my-k3s-0d2de8e5
+base: k3s
+title: OWASP K8s
+description: K3s cluster with some vulnerabilities
+categories:
+    - kubernetes
+playground:
+    networks:
+        - name: local
+          subnet: 172.16.0.0/24
+    machines:
+        - name: cplane-01
+          users:
+            - name: root
+            - name: laborant
+              default: true
+              welcome: |-
+                This lab has a deliberately misconfigured k3s cluster based on the OWASP top 10 Kubernetes vulnerabilities. The namespace for all vulnerable resources is "test-lab".
+
+                Find the vulnerabilities by running one of the following scans:
+
+                # scan the entire namespace with kubescape
+                $ kubescape scan --include-namespaces test-lab
+
+                # scan a specific deployment in the namespace with kubescape
+                $ kubescape scan workload Deployment/<deployment-name> --include-namespaces test-lab
+
+                Open the port for 8888 and connect to the notifications server...then you'll be able to see when the vulnerability is fixed and reset, with the cluster ready for another scan.
+          drives:
+            - source: k3s-cplane
+              mount: /
+              size: 30GiB
+          network:
+            interfaces:
+                - address: 172.16.0.2/24
+                  network: local
+          resources:
+            cpuCount: 2
+            ramSize: 4GiB
+          startupFiles:
+            - path: /home/laborant/.bashrc
+              content: |
+                export PATH=$PATH:/usr/local/go/bin:$HOME/go/bin
+              mode: "644"
+              owner: laborant:laborant
+              append: true
+    tabs:
+        - id: terminal-cplane-01
+          kind: terminal
+          name: cplane-01
+          machine: cplane-01
+        - id: http-port-ltvrhte8a6d
+          kind: http-port
+          name: notifications
+          machine: cplane-01
+          number: 8888
+          access: public
+    initTasks:
+        init_cplane_01_apply_crd:
+            name: init_cplane_01_apply_crd
+            machine: cplane-01
+            init: true
+            user: laborant
+            timeout_seconds: 300
+            needs:
+                - init_cplane_01_setup_operator
+            run: |-
+                #!/bin/bash
+
+                kubectl apply -f - <<EOF
+                apiVersion: lab.security.lab/v1alpha1
+                kind: VulnerableLab
+                metadata:
+                  name: test-lab
+                spec: {}
+                EOF
+
+                echo "Custom resource applied. Waiting for all pods in test-lab namespace to be ready..."
+
+                # Wait for all pods to be ready with a 60-second timeout
+                kubectl wait --for=condition=Ready --timeout=60s pods --all -n test-lab
+
+                echo "All pods in test-lab namespace are now ready!"
+        init_cplane_01_clone_operator_repo:
+            name: init_cplane_01_clone_operator_repo
+            machine: cplane-01
+            init: true
+            user: root
+            timeout_seconds: 300
+            run: |-
+                #!/bin/bash
+
+                git clone https://github.com/lpmi-13/vulnerable-lab-operator /tmp/vulnerable-lab-operator
+
+                chown -R laborant:laborant /tmp/vulnerable-lab-operator
+        init_cplane_01_install_go:
+            name: init_cplane_01_install_go
+            machine: cplane-01
+            init: true
+            user: root
+            timeout_seconds: 300
+            run: |-
+                #!/bin/bash
+
+                set -eu
+
+                GOLANG_VERSION=1.24.7
+
+                apt-get update
+                apt-get install -y \
+                  build-essential gcc
+
+                wget https://go.dev/dl/go${GOLANG_VERSION}.linux-amd64.tar.gz
+                rm -rf /usr/local/go && tar -C /usr/local -xzf go${GOLANG_VERSION}.linux-amd64.tar.gz
+                rm -r go${GOLANG_VERSION}.linux-amd64.tar.gz
+        init_cplane_01_install_scanner_tools:
+            name: init_cplane_01_install_scanner_tools
+            machine: cplane-01
+            init: true
+            user: root
+            timeout_seconds: 300
+            run: |-
+                #!/bin/bash
+
+                set -eu
+
+                # Install kubescape
+                curl -s https://raw.githubusercontent.com/kubescape/kubescape/master/install.sh | /bin/bash
+        init_cplane_01_setup_operator:
+            name: init_cplane_01_setup_operator
+            machine: cplane-01
+            init: true
+            user: laborant
+            timeout_seconds: 300
+            needs:
+                - init_cplane_01_install_go
+                - init_cplane_01_clone_operator_repo
+            run: |-
+                #!/bin/bash
+
+                set -eu
+
+                export PATH=$PATH:/usr/local/go/bin
+                export GOROOT=/usr/local/go
+                export GOPATH=/home/laborant/go
+
+                cd /tmp/vulnerable-lab-operator
+                make manifests
+                make install
+
+                # Run operator in background with output logging
+                nohup make run > /tmp/operator.log 2>&1 &
+    accessControl:
+        canList:
+            - owner
+        canRead:
+            - owner
+        canStart:
+            - owner
