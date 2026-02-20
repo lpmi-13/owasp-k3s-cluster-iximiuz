@@ -1,0 +1,14 @@
+[Unit]
+Description=Seed VulnerableLab Custom Resource
+After=vulnerable-lab-operator.service
+Wants=vulnerable-lab-operator.service
+
+[Service]
+Type=oneshot
+User=laborant
+Environment=KUBECONFIG=/home/laborant/.kube/config
+ExecStart=/bin/sh -c 'kubectl apply -f /opt/vulnerable-lab-operator/default-vulnerablelab.yaml'
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

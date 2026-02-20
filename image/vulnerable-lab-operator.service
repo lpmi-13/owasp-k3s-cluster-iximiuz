@@ -1,0 +1,16 @@
+[Unit]
+Description=Vulnerable Lab Operator Service
+After=network.target k3s.service kubeconfig-setup.service
+Wants=k3s.service kubeconfig-setup.service
+
+[Service]
+Type=simple
+User=laborant
+Environment=KUBECONFIG=/home/laborant/.kube/config
+ExecStartPre=/opt/iximiuz-labs/bootstrap-vulnerable-lab.sh
+ExecStart=/usr/local/bin/vulnerable-lab-operator
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
