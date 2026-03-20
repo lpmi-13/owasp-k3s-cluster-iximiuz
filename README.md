@@ -12,5 +12,7 @@ The Dockerfile expects a release-pinned iximiuz rootfs tag:
 docker build \
   --build-arg ROOTFS_RELEASE=<release> \
   --build-arg OPERATOR_REF=main \
-  -t ghcr.io/lpmi-13/owasp-k3s-cluster-iximiuz .
+  -t ghcr.io/lpmi-13/owasp-k3s-cluster-iximiuz:tag .
 ```
+
+> you can leave out the two build args to just pick up the default, as specified in the Dockerfile.
