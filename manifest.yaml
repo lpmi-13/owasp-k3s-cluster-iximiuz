@@ -30,7 +30,7 @@ playground:
 
                 Click on the button that says notifications, then if you click the "popout" icon, it'll open in a new browser tab and you can enable notifications that will automatically pop up during the cluster vulnerability lifecycle.
           drives:
-            - source: oci://ghcr.io/lpmi-13/owasp-k3s-cluster-iximiuz:v4
+            - source: oci://ghcr.io/lpmi-13/owasp-k3s-cluster-iximiuz:v5
               mount: /
               size: 30GiB
           network:
